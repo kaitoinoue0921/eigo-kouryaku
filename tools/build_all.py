@@ -273,25 +273,51 @@ def build_search():
 
 
 # ---------------- 英語構文マップ ----------------
-# 文の設計図：どの部品に、どの項目が関わるか（idは項目のid。存在しないidはビルドエラー）
-BLOCKS = [
-    ("adv", "接続・副詞節", "Although 〜, / When 〜, / If 〜,", 30, "時・理由・条件・譲歩・目的などを、主節の前後に足す。",
-     ["cl-time-cond-present", "cl-time-conj", "cl-not-until", "cl-concession", "cl-reason", "cl-purpose", "cl-result", "cl-condition", "cl-manner", "cl-range", "cl-contrast", "vb-participle-basic", "vb-participle-perf-pass", "vb-with-oc", "od-concessive-inv"]),
-    ("s", "主語 S", "何が・だれが", 5, "名詞・名詞節・不定詞・動名詞。長い主語の見つけ方。",
-     ["od-long-subject", "dummy-it", "cl-noun-that", "cl-whether-if", "cl-indirect-question", "md-what", "vb-gerund-subj", "vs-inanimate", "md-noun-construction", "od-insertion"]),
-    ("v", "動詞 V", "時制・態・助動詞", 45, "動詞の形が、いつのこと・どんな意味かを決める。",
-     ["present-perfect", "modal-perfect", "passive", "vs-tense", "vs-passive-note", "sj-modal-basic", "sj-may-well", "sj-used-to", "sj-should-emotion", "vs-there", "vs-phrasal"]),
-    ("o", "目的語・補語 O / C", "V のあとに続く形", 140, "動詞ごとに、後ろに来る形が決まっている。",
-     ["vs-svoc", "vs-causative", "vs-perception", "vs-svo-to", "vs-from-ing", "vs-of", "vs-with", "vs-as", "od-dummy-object", "vb-gerund-idioms", "to-infinitive", "gerund-inf", "vb-sub-inf"]),
-    ("m", "修飾 M", "名詞・動詞に情報を足す", 210, "関係詞・分詞・不定詞・前置詞句・同格。どこにかかるかを決める。",
-     ["md-rel-basic", "md-prep-rel", "md-rel-adverb", "md-rel-omit", "md-nonrestrictive", "md-that-what", "md-compound-rel", "md-chain-rel", "md-participle-post", "md-adj-post", "md-to-adj", "md-prep-phrase", "od-appositive", "vb-too-enough", "vb-purpose-result"]),
-]
-BANDS = [
-    ("cmp", "比較", 275, ["cp-as-as", "cp-comparative", "cp-the-more", "cp-superlative", "cp-superlative-equivalent", "cp-no-more-than", "cp-not-so-much", "cp-than-omitted", "cp-idioms"]),
-    ("neg", "否定", 350, ["ng-partial", "ng-not-a-but-b", "ng-semi", "ng-no-noun", "ng-double", "ng-idioms", "ng-hidden", "ng-transfer", "ng-scope"]),
-    ("sub", "仮定・願望", 250, ["sj-past", "sj-past-perf", "sj-inversion", "sj-wish", "sj-as-if", "sj-without", "sj-otherwise", "sj-hidden-cond", "sj-would-rather"]),
-    ("ord", "語順の変化・強調", 175, ["od-neg-inversion", "od-only", "od-so-neither", "od-c-inversion", "od-cleft", "od-emphasis", "od-common-ellipsis", "od-rhetorical"]),
-    ("con", "つなぐ・論理", 95, ["cl-coordination", "cl-correlative", "cl-so-for-yet", "cl-prep-conj", "cl-as-usage", "discourse", "reference"]),
+import math
+
+# マインドマップの枝。並びは時計回り（上から）。hue は色相。leaves は (項目id, 短いラベル)。
+# 枝ごとの「くわしい一覧」用に ids を持つ。存在しないidはビルドエラー。
+MINDMAP = [
+    dict(key="s", name="主語 S", sub="何が・だれが", hue=0, group="part", desc="名詞・名詞節・不定詞・動名詞。長い主語の見つけ方。",
+         leaves=[("od-long-subject", "長い主語"), ("dummy-it", "形式主語 it"), ("cl-noun-that", "名詞節 that"), ("cl-whether-if", "whether / if"),
+                 ("md-what", "what 節"), ("vb-gerund-subj", "動名詞の主語"), ("vs-inanimate", "無生物主語"), ("od-insertion", "挿入")],
+         more=["cl-indirect-question", "md-noun-construction", "vb-sub-inf"]),
+    dict(key="v", name="動詞 V", sub="時制・態・助動詞", hue=36, group="part", desc="動詞の形が、いつのこと・どんな意味かを決める。",
+         leaves=[("present-perfect", "現在完了"), ("passive", "受動態"), ("vs-tense", "時制の一致"), ("sj-modal-basic", "助動詞の推量"),
+                 ("modal-perfect", "助動詞+have p.p."), ("sj-used-to", "used to"), ("vs-there", "There 構文"), ("vs-phrasal", "群動詞")],
+         more=["vs-passive-note", "sj-may-well", "sj-should-emotion"]),
+    dict(key="o", name="目的語・補語", sub="V のあとの形", hue=72, group="part", desc="動詞ごとに、後ろに来る形が決まっている。",
+         leaves=[("vs-svoc", "SVOC"), ("vs-causative", "使役 make/let/have"), ("vs-perception", "知覚動詞"), ("vs-svo-to", "SVO to do"),
+                 ("vs-from-ing", "prevent A from -ing"), ("vs-as", "regard A as B"), ("od-dummy-object", "形式目的語 it"), ("vb-gerund-idioms", "動名詞の慣用表現"), ("to-infinitive", "to 不定詞の3用法")],
+         more=["vs-of", "vs-with", "gerund-inf", "vb-sub-inf"]),
+    dict(key="m", name="修飾 M", sub="情報を足す", hue=108, group="part", desc="関係詞・分詞・不定詞・前置詞句・同格。どこにかかるかを決める。",
+         leaves=[("md-rel-basic", "関係代名詞"), ("md-prep-rel", "前置詞+関係詞"), ("md-rel-adverb", "関係副詞"), ("md-rel-omit", "関係詞の省略"),
+                 ("md-nonrestrictive", "非制限用法"), ("md-participle-post", "分詞の後置修飾"), ("md-to-adj", "to 不定詞の修飾"), ("od-appositive", "同格"), ("md-prep-phrase", "前置詞句の係り先")],
+         more=["md-that-what", "md-compound-rel", "md-chain-rel", "md-adj-post", "vb-too-enough", "vb-purpose-result"]),
+    dict(key="adv", name="副詞節・接続", sub="時・理由・条件…", hue=144, group="part", desc="時・理由・条件・譲歩・目的などを、主節の前後に足す。",
+         leaves=[("cl-time-cond-present", "時・条件は現在形"), ("cl-not-until", "not until"), ("cl-concession", "譲歩"), ("cl-condition", "条件 unless"),
+                 ("cl-purpose", "目的 so that"), ("cl-result", "結果 so…that"), ("vb-participle-basic", "分詞構文"), ("vb-with-oc", "with + O + C")],
+         more=["cl-time-conj", "cl-reason", "cl-manner", "cl-range", "cl-contrast", "vb-participle-perf-pass", "od-concessive-inv"]),
+    dict(key="cmp", name="比較", sub="", hue=180, group="change", desc="何と何を比べているかを決める。型で覚える。",
+         leaves=[("cp-as-as", "as … as"), ("cp-comparative", "比較級 than"), ("cp-the-more", "the + 比較級 …"), ("cp-superlative", "最上級"),
+                 ("cp-superlative-equivalent", "最上級相当"), ("cp-no-more-than", "no more than"), ("cp-not-so-much", "not so much A as B"), ("cp-than-omitted", "that of / those of")],
+         more=["cp-idioms", "cp-as-possible", "cp-latin", "cp-of-the-two"]),
+    dict(key="neg", name="否定", sub="", hue=216, group="change", desc="どこまでが否定されているか、隠れた否定はないか。",
+         leaves=[("ng-partial", "部分否定"), ("ng-not-a-but-b", "not A but B"), ("ng-semi", "準否定 hardly"), ("ng-no-noun", "no + 名詞"),
+                 ("ng-double", "二重否定"), ("ng-idioms", "否定の慣用表現"), ("ng-hidden", "隠れた否定"), ("ng-transfer", "否定の転移")],
+         more=["ng-no-longer", "ng-strong", "ng-scope", "ng-emphatic"]),
+    dict(key="sub", name="仮定・願望", sub="", hue=252, group="change", desc="動詞の形が、実際の時間とずれていたら、現実と違う話。",
+         leaves=[("sj-past", "仮定法過去"), ("sj-past-perf", "仮定法過去完了"), ("sj-inversion", "if の省略"), ("sj-wish", "I wish"),
+                 ("sj-as-if", "as if"), ("sj-without", "without / but for"), ("sj-hidden-cond", "隠れた条件")],
+         more=["sj-were-to-should", "sj-high-time", "sj-would-rather", "sj-otherwise", "sj-mixed"]),
+    dict(key="ord", name="語順・強調", sub="", hue=288, group="change", desc="語順が普通と違うとき、何が起きているかを見抜く。",
+         leaves=[("od-neg-inversion", "否定語の倒置"), ("od-only", "Only の倒置"), ("od-so-neither", "So do I"), ("od-c-inversion", "補語・場所の倒置"),
+                 ("od-cleft", "強調構文"), ("od-emphasis", "強調 do"), ("od-common-ellipsis", "省略")],
+         more=["od-rhetorical", "od-wh-to", "od-what-idioms"]),
+    dict(key="con", name="つなぐ・論理", sub="", hue=324, group="change", desc="接続の範囲と、論理の向きをつかむ。",
+         leaves=[("cl-coordination", "and の範囲"), ("cl-correlative", "相関接続詞"), ("cl-prep-conj", "前置詞と接続詞"), ("cl-as-usage", "as の意味"),
+                 ("discourse", "論理を示す語"), ("reference", "指示語"), ("that-usage", "that の見分け")],
+         more=["cl-so-for-yet", "three-clauses", "wh-clauses", "paragraph-types"]),
 ]
 STEPS = [
     ("① 動詞 → 主語", ["skeleton"]),
@@ -299,11 +325,88 @@ STEPS = [
     ("③ 節を見抜く", ["three-clauses", "that-usage", "wh-clauses"]),
     ("④ 論理でつなぐ", ["discourse", "reference", "paragraph-types"]),
 ]
+CAT_HUE = {"od": 5, "md": 210, "cl": 30, "vb": 175, "cp": 275, "ng": 340, "sj": 250, "vs": 140}
 
 
 def _short(title):
     t = title.split("（")[0].strip()
     return t if len(t) >= 2 else title
+
+
+def _tw(s, fs=11.5):
+    return sum(fs if ord(c) >= 0x2E80 else fs * 0.56 for c in s)
+
+
+def _esc(s):
+    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+
+
+def build_mindmap_svg(idx):
+    n_br = len(MINDMAP)
+    fs = 11.5
+    R_LEAF = 238
+    maxw = max(_tw(lb, fs + 0.6) for br in MINDMAP for _, lb in br["leaves"])
+    label_end = R_LEAF + 12 + maxw
+    R_ARC = label_end + 24
+    S = int(R_ARC + 40)
+    C = S
+    W = 2 * S
+    R_BR = 168
+    step_deg = 360.0 / n_br
+    spread = 33.0
+
+    def pt(r, deg):
+        a = math.radians(deg)
+        return C + r * math.cos(a), C + r * math.sin(a)
+
+    missing = []
+    o = ['<svg class="mm-svg" viewBox="0 0 %d %d" role="group" aria-label="英語構文マップ。中心から10本の枝が広がる" xmlns="http://www.w3.org/2000/svg">' % (W, W)]
+    # 外側の弧とラベル
+    def arc(id_, a0, a1, label, rev=False):
+        if rev:
+            x0, y0 = pt(R_ARC, a1); x1, y1 = pt(R_ARC, a0); sweep = 0
+        else:
+            x0, y0 = pt(R_ARC, a0); x1, y1 = pt(R_ARC, a1); sweep = 1
+        o.append('<path id="%s" class="mm-arc" d="M %.1f %.1f A %.1f %.1f 0 0 %d %.1f %.1f" fill="none"/>' % (id_, x0, y0, R_ARC, R_ARC, sweep, x1, y1))
+        o.append('<text class="mm-arc-label"><textPath href="#%s" startOffset="50%%" text-anchor="middle">%s</textPath></text>' % (id_, label))
+    a_first = -90 - step_deg / 2 + 2
+    a_mid = -90 + step_deg * 5 - step_deg / 2
+    arc("mm-arc-a", a_first, a_mid - 2, "文をつくる 5つの部品")
+    arc("mm-arc-b", a_mid + 2, -90 + step_deg * 10 - step_deg / 2 - 2, "文全体にかかる 5つの変化", rev=True)
+    # 中心
+    for i, br in enumerate(MINDMAP):
+        deg = -90 + step_deg * i
+        bx, by = pt(R_BR, deg)
+        o.append('<g class="mm-group" data-branch="%s" style="--h:%d">' % (br["key"], br["hue"]))
+        cx0, cy0 = pt(58, deg)
+        o.append('<line class="mm-spoke" x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f"/>' % (cx0, cy0, bx, by))
+        leaves = br["leaves"]
+        n = len(leaves)
+        step = min(spread / (n - 1), 5.4) if n > 1 else 0
+        for k, (iid, label) in enumerate(leaves):
+            if iid not in idx:
+                missing.append(iid)
+                continue
+            d = idx[iid]
+            a = deg + (k - (n - 1) / 2.0) * step
+            lx, ly = pt(R_LEAF, a)
+            right = math.cos(math.radians(a)) >= 0
+            rot = a if right else a + 180
+            o.append('<line class="mm-twig" x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f"/>' % (bx, by, lx, ly))
+            tx = 9 if right else -9
+            anchor = "start" if right else "end"
+            o.append('<a class="mm-leaf t-%s" data-id="%s" href="%s#%s" aria-label="%s"><title>%s（%s）</title>'
+                     '<g transform="translate(%.1f %.1f) rotate(%.1f)"><circle r="3.6"/><text x="%d" dy=".35em" text-anchor="%s">%s</text></g></a>'
+                     % (d["t"], iid, d["p"], iid, _esc(d["ti"]), _esc(d["ti"]), _esc(d["pn"]), lx, ly, rot, tx, anchor, _esc(label)))
+        bw = max(_tw(br["name"], 13.5) + 24, 84)
+        o.append('<g class="mm-branch" tabindex="0" role="button" aria-label="%s の構文を一覧で表示" data-branch="%s"><rect x="%.1f" y="%.1f" width="%.1f" height="34" rx="17"/>'
+                 '<text x="%.1f" y="%.1f" text-anchor="middle" dy=".35em">%s</text></g>' % (_esc(br["name"]), br["key"], bx - bw / 2, by - 17, bw, bx, by, _esc(br["name"])))
+        o.append("</g>")
+    o.append('<g class="mm-center"><circle cx="%d" cy="%d" r="58"/><text x="%d" y="%d" text-anchor="middle">英文の</text><text x="%d" y="%d" text-anchor="middle">構造</text></g>' % (C, C, C, C - 5, C, C + 17))
+    o.append("</svg>")
+    if missing:
+        raise SystemExit("構文マップに存在しない項目idがあります: %s" % sorted(set(missing)))
+    return "\n".join(o)
 
 
 def build_map_html():
@@ -322,51 +425,52 @@ def build_map_html():
         d = idx[i]
         return '<a class="mchip t-%s" data-id="%s" href="%s#%s" title="%s（%s）">%s</a>' % (d["t"], i, d["p"], i, d["ti"].replace('"', "&quot;"), d["pn"], _short(d["ti"]))
 
+    svg = build_mindmap_svg(idx)
     out = ['<section class="map" id="map">',
            "  <h2>英語構文マップ</h2>",
-           '  <p class="lead">英文は、<b>5つの部品</b>（副詞節・S・V・O/C・M）と、文全体にかかる<b>5つの変化</b>（比較・否定・仮定・語順・接続）でできている。<b>どの構文が、文のどこにあるか</b>を、色で見わたす。項目をクリックすると、その説明に移動する。</p>',
-           '  <div class="mlegend"><span class="mchip t-must">必須</span><span class="mchip t-core">差がつく</span><span class="mchip t-skip">ここまで不要</span><span class="mchip t-must done">完了した項目</span></div>',
-           "  <h3 class=\"map-h\">1. 例文で見る、文の設計図</h3>",
-           '  <div class="msent">',
-           '    <p class="msent-en">'
-           '<span class="w" style="--h:30"><i>Although she was tired,</i><em>接続・副詞節（譲歩）</em></span> '
-           '<span class="w" style="--h:5"><i>the student</i><em>主語 S</em></span> '
-           '<span class="w" style="--h:210"><i>who sat next to me</i><em>修飾 M（関係詞節）</em></span> '
-           '<span class="w" style="--h:45"><i>finished</i><em>動詞 V</em></span> '
-           '<span class="w" style="--h:140"><i>the report</i><em>目的語 O</em></span> '
-           '<span class="w" style="--h:210"><i>that the teacher had given us.</i><em>修飾 M（関係詞節）</em></span></p>',
-           '    <p class="msent-ja">疲れていたけれども、私の隣に座っていたその生徒は、先生が私たちに出したレポートを書き終えた。</p>',
-           "  </div>",
-           '  <p class="mformula" aria-hidden="true"><span style="--h:30">副詞節</span><b>,</b><span style="--h:5">S</span><b>＋</b><span style="--h:45">V</span><b>＋</b><span style="--h:140">O / C</span><b>＋</b><span style="--h:210">M</span></p>',
-           '  <div class="msteps">']
+           '  <p class="lead">中心の「英文の構造」から、<b>5つの部品</b>と<b>5つの変化</b>の10本の枝が広がる。<b>色つきの枝をクリック</b>すると、その分野の構文が一覧で出る。<b>先の項目をクリック</b>すると、その説明に移動する。</p>',
+           '  <div class="mlegend"><span class="mkey"><i class="dot must"></i>必須</span><span class="mkey"><i class="dot core"></i>差がつく</span><span class="mkey"><i class="dot done"></i>完了した項目</span>'
+           '<span class="mm-zoom" role="group" aria-label="拡大・縮小"><button type="button" data-z="out" aria-label="縮小">－</button><button type="button" data-z="fit">全体表示</button><button type="button" data-z="in" aria-label="拡大">＋</button></span></div>',
+           '  <div class="mm-wrap" id="mm-wrap" tabindex="0" aria-label="構文マップ（スクロールして見る）">', svg, "  </div>",
+           '  <div class="mm-panel" id="mm-panel" aria-live="polite"><p class="note">色つきの枝（丸い四角）をクリックすると、その分野の構文が、ここに一覧で出ます。</p></div>',
+           '  <details class="mdetail"><summary>部品・変化ごとの一覧を、すべて表示する</summary><div class="mblocks">']
+    for br in MINDMAP:
+        ids = [i for i, _ in br["leaves"]] + br["more"]
+        out.append('    <div class="mblock" data-branch="%s" style="--h:%d"><h4>%s<small>%s</small></h4><p>%s</p><div class="mchips">%s</div></div>' % (
+            br["key"], br["hue"], br["name"], br["sub"], br["desc"], "".join(chip(i) for i in ids)))
+    out.append("  </div></details>")
+    out.append('  <h3 class="map-h">例文で見る、文の設計図</h3>')
+    hue = {m["key"]: m["hue"] for m in MINDMAP}
+    out.append('  <div class="msent">')
+    out.append('    <p class="msent-en">'
+               '<span class="w" style="--h:%d"><i>Although she was tired,</i><em>副詞節・接続（譲歩）</em></span> '
+               '<span class="w" style="--h:%d"><i>the student</i><em>主語 S</em></span> '
+               '<span class="w" style="--h:%d"><i>who sat next to me</i><em>修飾 M（関係詞節）</em></span> '
+               '<span class="w" style="--h:%d"><i>finished</i><em>動詞 V</em></span> '
+               '<span class="w" style="--h:%d"><i>the report</i><em>目的語 O</em></span> '
+               '<span class="w" style="--h:%d"><i>that the teacher had given us.</i><em>修飾 M（関係詞節）</em></span></p>' % (
+                   hue["adv"], hue["s"], hue["m"], hue["v"], hue["o"], hue["m"]))
+    out.append('    <p class="msent-ja">疲れていたけれども、私の隣に座っていたその生徒は、先生が私たちに出したレポートを書き終えた。</p>')
+    out.append("  </div>")
+    out.append('  <p class="mformula" aria-hidden="true"><span style="--h:%d">副詞節</span><b>,</b><span style="--h:%d">S</span><b>＋</b><span style="--h:%d">V</span><b>＋</b><span style="--h:%d">O / C</span><b>＋</b><span style="--h:%d">M</span></p>' % (
+        hue["adv"], hue["s"], hue["v"], hue["o"], hue["m"]))
+    out.append('  <h3 class="map-h">読む手順</h3>')
+    out.append('  <div class="msteps">')
     for name, ids in STEPS:
         out.append('    <div class="mstep"><b>%s</b>%s</div>' % (name, "".join(chip(i) for i in ids)))
     out.append("  </div>")
-    out.append('  <h3 class="map-h">2. 5つの部品ごとの構文</h3>')
-    out.append('  <div class="mblocks">')
-    for key, name, sub, h, desc, ids in BLOCKS:
-        out.append('    <div class="mblock" style="--h:%d"><h4>%s<small>%s</small></h4><p>%s</p><div class="mchips">%s</div></div>' % (h, name, sub, desc, "".join(chip(i) for i in ids)))
-    out.append("  </div>")
-    out.append('  <h3 class="map-h">3. 文全体にかかる、5つの変化</h3>')
-    out.append('  <div class="mblocks bands">')
-    for key, name, h, ids in BANDS:
-        out.append('    <div class="mblock" style="--h:%d"><h4>%s</h4><div class="mchips">%s</div></div>' % (h, name, "".join(chip(i) for i in ids)))
-    out.append("  </div>")
-    out.append('  <h3 class="map-h">4. 分野別の全構文（%d項目）</h3>' % sum(1 for v in idx.values() if v["p"].startswith("p-")))
+    out.append('  <h3 class="map-h">分野別（ページ別）の全構文 %d項目</h3>' % sum(1 for v in idx.values() if v["p"].startswith("p-")))
     out.append('  <div class="mcats">')
     for m in PATTERN_PAGES:
         P = m.PAGE
         chips = "".join(chip(it["id"]) for _, items in P["sections"] for it in items)
-        out.append('    <div class="mcat mblock" data-page="%s" style="--h:%d"><h4><a href="%s">%s　%s</a><span class="mprog"></span></h4><p>%s</p><div class="mchips">%s</div></div>' % (
-            P["file"], CAT_HUE[P["key"]], P["file"], P["icon"], P["name"], P["summary"], chips))
+        out.append('    <div class="mcat mblock" data-page="%s"><h4><a href="%s">%s　%s</a><span class="mprog"></span></h4><p>%s</p><div class="mchips">%s</div></div>' % (
+            P["file"], P["file"], P["icon"], P["name"], P["summary"], chips))
     out.append("  </div>")
     out.append("</section>")
     if missing:
         raise SystemExit("構文マップに存在しない項目idがあります: %s" % sorted(set(missing)))
     return "\n".join(out)
-
-
-CAT_HUE = {"od": 5, "md": 210, "cl": 30, "vb": 175, "cp": 275, "ng": 340, "sj": 250, "vs": 140}
 
 
 def build_toc_page():
@@ -397,9 +501,8 @@ def build_toc_page():
                 parts.append('        <li data-id="%s" data-tier="%s"><a href="%s#%s"><span class="tier tier-%s">%s</span><span class="no">No.%02d</span> %s</a></li>' % (_id, tier, fname, _id, tier, TL[tier], n, title))
         if ol_open:
             parts.append("      </ol>")
-        head = '<a href="%s">%s</a>' % (fname, label)
-        sec.append('    <section class="tocp" data-page="%s">\n      <h2>%s<span class="count"></span></h2>%s\n%s\n    </section>' % (
-            fname, head, ('\n      <p class="note">%s</p>' % summ) if summ else "", "\n".join(parts)))
+        sec.append('    <details class="tocp" data-page="%s">\n      <summary><span class="tp-name">%s</span><span class="count"></span></summary>\n      <p class="note"><a href="%s">%sのページを開く →</a>%s</p>\n%s\n    </details>' % (
+            fname, label, fname, label, ("　" + summ) if summ else "", "\n".join(parts)))
     others = ('    <section class="tocp-other">\n      <h2>そのほか</h2>\n      <ul>\n'
               '        <li><a href="patterns.html">構文ライブラリ（8分野の入口）</a></li>\n'
               '        <li><a href="skip-list.html">ここまでは不要（一覧）</a></li>\n'
@@ -409,6 +512,7 @@ def build_toc_page():
             "  <h1>目次</h1>",
             '  <p class="lead">全ページの項目の一覧。読みたい項目をクリックすると、その項目に移動する。<b>キーワードで探すときは、右上の「検索」</b>（または <kbd>/</kbd> キー）を使う。</p>',
             '  <p class="note">↓ 目次の下に、<a href="#map">英語構文マップ</a>（文の設計図・分野別の全構文）があります。</p>',
+            '  <p class="toc-ctl"><button type="button" id="toc-all" class="hd">すべて開く</button></p>',
             "  <div class=\"tocs\">", "\n".join(sec), others, "  </div>",
             build_map_html(),
             "  <footer>\n    <p><a href=\"index.html\">← トップへ戻る</a></p>\n  </footer>", FOOT]

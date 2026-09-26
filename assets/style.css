@@ -321,3 +321,57 @@ a.mchip:hover{background:var(--edge,var(--ink));color:var(--surface);border-colo
 :root[data-theme="dark"] .w i{background:hsl(var(--h) 25% 22%);border-bottom-color:hsl(var(--h) 55% 62%)}
 :root[data-theme="dark"] .w em{color:hsl(var(--h) 55% 72%)}
 :root[data-theme="dark"] .mformula span{background:hsl(var(--h) 45% 38%)}
+
+/* ---- マインドマップ ---- */
+.mm-wrap{position:relative;left:50%;transform:translateX(-50%);width:min(1120px,calc(100vw - 24px));overflow:auto;background:var(--surface);border:1px solid var(--rule);border-radius:12px;margin:8px 0;-webkit-overflow-scrolling:touch}
+.mm-svg{display:block;margin:0 auto;height:auto}
+.mm-svg text{font-family:"Zen Kaku Gothic New",sans-serif}
+.mm-group{--c:hsl(var(--h) 55% 40%);--c2:hsl(var(--h) 45% 62%);--fill:hsl(var(--h) 55% 38%)}
+.mm-spoke{stroke:var(--c2);stroke-width:2.6;opacity:.85}
+.mm-twig{stroke:var(--c2);stroke-width:1;opacity:.55}
+.mm-leaf circle{fill:var(--c)}
+.mm-leaf.t-core circle{fill:var(--surface);stroke:var(--c);stroke-width:1.7}
+.mm-leaf text{font-size:11.5px;fill:var(--ink);paint-order:stroke;stroke:var(--surface);stroke-width:3px;stroke-linejoin:round}
+.mm-leaf.t-must text{font-weight:700}
+.mm-leaf{cursor:pointer;outline:none}
+.mm-leaf:hover text,.mm-leaf:focus text{fill:var(--c);text-decoration:underline}
+.mm-leaf.done text{opacity:.45;text-decoration:line-through}
+.mm-leaf.done circle{fill:var(--ok);stroke:var(--ok)}
+.mm-branch{cursor:pointer;outline:none}
+.mm-branch rect{fill:var(--fill);stroke:var(--surface);stroke-width:2}
+.mm-branch text{font-size:13.5px;font-weight:800;fill:#fff}
+.mm-branch:hover rect,.mm-branch:focus rect,.mm-group.active .mm-branch rect{stroke:var(--ink);stroke-width:3}
+.mm-center circle{fill:var(--ink)}
+.mm-center text{fill:var(--bg);font-family:"Shippori Mincho",serif !important;font-weight:800;font-size:16px}
+.mm-arc{stroke:var(--rule-strong);stroke-width:1.5;stroke-dasharray:3 5;fill:none}
+.mm-arc-label{font-size:13px;font-weight:700;fill:var(--ink-soft);letter-spacing:.1em}
+.mm-svg.mm-focus .mm-group:not(.active){opacity:.14;transition:opacity .2s}
+.mm-svg .mm-group{transition:opacity .2s}
+.mkey{font-size:.85rem;margin-right:12px;white-space:nowrap}
+.mkey .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px;background:var(--ink)}
+.mkey .dot.core{background:var(--surface);border:2px solid var(--ink)}
+.mkey .dot.done{background:var(--ok)}
+.mlegend{align-items:center}
+.mm-zoom{margin-left:auto;display:inline-flex;gap:4px}
+.mm-zoom button{font:inherit;font-size:.82rem;padding:3px 12px;border:1px solid var(--rule-strong);border-radius:999px;background:var(--surface);color:var(--ink);cursor:pointer}
+.mm-panel{margin:10px 0 4px;min-height:44px}
+.mm-panel .mblock{margin:0}
+.mdetail{margin:14px 0;background:var(--surface);border:1px solid var(--rule);border-radius:8px}
+.mdetail summary{cursor:pointer;padding:10px 14px;font-weight:700}
+.mdetail .mblocks{padding:0 12px 12px}
+.mblock.mcat{--tint:var(--surface-2);--edge:var(--ink-soft);--line:var(--rule)}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]) .mm-group{--c:hsl(var(--h) 60% 68%);--c2:hsl(var(--h) 40% 45%);--fill:hsl(var(--h) 45% 34%)}
+}
+:root[data-theme="dark"] .mm-group{--c:hsl(var(--h) 60% 68%);--c2:hsl(var(--h) 40% 45%);--fill:hsl(var(--h) 45% 34%)}
+
+/* 全体目次を折りたたみ式に */
+.toc-ctl{margin:6px 0 10px}
+.tocp{padding:2px 16px}
+.tocp summary{cursor:pointer;display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:9px 0;font-family:"Shippori Mincho",serif;font-weight:800;font-size:1.05rem;list-style:none}
+.tocp summary::-webkit-details-marker{display:none}
+.tocp summary::before{content:"▸";margin-right:6px;font-size:.85em;color:var(--ink-soft)}
+.tocp[open] summary::before{content:"▾"}
+.tocp summary .tp-name{flex:1}
+.tocp[open]{padding-bottom:12px}
+.tocs{gap:8px}

@@ -300,7 +300,7 @@
   });
 
   function paintMap(s) {
-    document.querySelectorAll('.mchip[data-id]').forEach(function (c) {
+    document.querySelectorAll('.mchip[data-id], .mm-leaf[data-id]').forEach(function (c) {
       c.classList.toggle('done', isDone(c.getAttribute('data-id')));
     });
     document.querySelectorAll('.mcat[data-page]').forEach(function (c) {
@@ -601,6 +601,74 @@
     return span;
   }
 
+
+  /* ---------- 英語構文マップ（マインドマップ） ---------- */
+  function initMindmap() {
+    var wrap = document.getElementById('mm-wrap');
+    if (!wrap) return;
+    var svg = wrap.querySelector('.mm-svg'), panel = document.getElementById('mm-panel');
+    var hint = panel ? panel.innerHTML : '';
+    var box = svg.viewBox.baseVal, ratio = box.height / box.width;
+    var z = 1, small = false;
+    function fitWidth() {
+      var w = wrap.clientWidth;
+      var byHeight = Math.max(720, window.innerHeight * 0.94);
+      return Math.min(w, byHeight);
+    }
+    function setWidth(px) {
+      var cx = (wrap.scrollLeft + wrap.clientWidth / 2) / (svg.getBoundingClientRect().width || 1);
+      svg.style.width = Math.round(px) + 'px';
+      wrap.scrollLeft = cx * px - wrap.clientWidth / 2;
+    }
+    function apply() { setWidth(fitWidth() * z); }
+    small = wrap.clientWidth < 700;
+    if (small) { svg.style.width = '900px'; z = 900 / fitWidth(); wrap.scrollLeft = (900 - wrap.clientWidth) / 2; } else { svg.style.width = Math.round(fitWidth()) + 'px'; }
+    document.querySelectorAll('.mm-zoom button').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var k = b.getAttribute('data-z');
+        if (k === 'in') z = Math.min(z * 1.3, 4);
+        else if (k === 'out') z = Math.max(z / 1.3, 1);
+        else { z = 1; wrap.scrollLeft = 0; }
+        apply();
+      });
+    });
+    window.addEventListener('resize', function () { if (z === 1) apply(); });
+
+    function select(key) {
+      var already = svg.getAttribute('data-active') === key;
+      svg.querySelectorAll('.mm-group').forEach(function (g) {
+        g.classList.toggle('active', !already && g.getAttribute('data-branch') === key);
+      });
+      svg.classList.toggle('mm-focus', !already);
+      svg.setAttribute('data-active', already ? '' : key);
+      if (already) { panel.innerHTML = hint; return; }
+      var blk = document.querySelector('.mdetail .mblock[data-branch="' + key + '"]');
+      if (!blk) return;
+      var c = blk.cloneNode(true);
+      c.removeAttribute('data-branch');
+      panel.innerHTML = '';
+      panel.appendChild(c);
+      paintMap(compute());
+      panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    svg.querySelectorAll('.mm-branch').forEach(function (br) {
+      br.addEventListener('click', function () { select(br.getAttribute('data-branch')); });
+      br.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(br.getAttribute('data-branch')); }
+      });
+    });
+  }
+  function initTocAll() {
+    var btn = document.getElementById('toc-all');
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      var ds = document.querySelectorAll('details.tocp');
+      var openAll = Array.prototype.some.call(ds, function (d) { return !d.open; });
+      ds.forEach(function (d) { d.open = openAll; });
+      btn.textContent = openAll ? 'すべて閉じる' : 'すべて開く';
+    });
+  }
+
   /* ---------- 記録ページ ---------- */
   var progressRoot = document.getElementById('progress-root');
   function bar(d, t) {
@@ -658,6 +726,8 @@
   mountBadge();
   mountSearch();
   buildToc();
+  initMindmap();
+  initTocAll();
   setHeadH();
   window.addEventListener('resize', setHeadH);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(setHeadH);
