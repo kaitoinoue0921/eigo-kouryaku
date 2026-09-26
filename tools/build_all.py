@@ -15,7 +15,7 @@ from content import order, modifier, clause, verbal, compare, negation, subj, ve
 PATTERN_PAGES = [order, modifier, clause, verbal, compare, negation, subj, verbs]
 TIER_LABEL = {"must": "必須", "core": "差がつく", "skip": "ここまで不要"}
 
-NAV = [("index.html", "トップ"), ("symbols.html", "記号"), ("grammar.html", "文法"),
+NAV = [("index.html", "トップ"), ("toc.html", "目次"), ("symbols.html", "記号"), ("grammar.html", "文法"),
        ("patterns.html", "構文"), ("before-reading.html", "長文の前に"),
        ("score-tips.html", "得点のコツ"), ("skip-list.html", "不要リスト"), ("progress.html", "記録")]
 
@@ -88,7 +88,7 @@ def render_item(it):
 def render_quiz(quiz):
     if not quiz:
         return ""
-    out = ['  <section class="quiz">', "    <h2>確認問題</h2>",
+    out = ['  <section class="quiz" id="quiz">', "    <h2>確認問題</h2>",
            '    <p class="note">クリックすると答えが開く。答えを見る前に、頭の中で答えを決めてから開く。</p>']
     for q, a in quiz:
         out.append('\n    <details class="q"><summary>%s</summary>\n      <div class="ans">%s</div></details>' % (q, a))
@@ -231,12 +231,99 @@ def build_manifest():
     return len(items), by, sum(p["quizzes"] for p in info.values())
 
 
+import html as _html
+
+
+def _plain(s):
+    s = re.sub(r"<[^>]+>", " ", s)
+    s = _html.unescape(s)
+    return re.sub(r"\s+", " ", s).strip()
+
+
+def item_pages():
+    """項目を持つページ（順序つき）: (ファイル名, 表示名)"""
+    return [("symbols.html", "記号"), ("grammar.html", "文法")] + \
+           [(m.PAGE["file"], m.PAGE["name"]) for m in PATTERN_PAGES] + \
+           [("before-reading.html", "長文の前に"), ("score-tips.html", "得点のコツ")]
+
+
+ITEM_RE = re.compile(r'<article class="item" data-tier="(must|core|skip)" id="([^"]+)">(.*?)</article>', re.S)
+
+
+def build_search():
+    docs = []
+    for fname, label in item_pages():
+        html = (ROOT / fname).read_text(encoding="utf-8")
+        for m in ITEM_RE.finditer(html):
+            tier, _id, body = m.groups()
+            title = _plain(re.search(r"<h3>(.*?)</h3>", body, re.S).group(1))
+            text = _plain(body.replace("理解した", ""))
+            docs.append({"id": _id, "p": fname, "pn": label, "t": tier, "ti": title, "x": text})
+    # 分野・ページ単位の検索対象
+    for m in PATTERN_PAGES:
+        P = m.PAGE
+        docs.append({"id": "", "p": P["file"], "pn": "構文ライブラリ", "t": "", "ti": P["name"] + "（分野）", "x": P["summary"] + " " + P["lead"]})
+    skip = (ROOT / "skip-list.html").read_text(encoding="utf-8")
+    main = re.search(r"<main.*?</main>", skip, re.S)
+    docs.append({"id": "", "p": "skip-list.html", "pn": "不要リスト", "t": "", "ti": "ここまでは不要（一覧）", "x": _plain(main.group(0))[:6000] if main else ""})
+    out = "window.EIKO_SEARCH=" + json.dumps(docs, ensure_ascii=False, separators=(",", ":")) + ";\n"
+    (ROOT / "assets" / "search-index.js").write_text(out, encoding="utf-8")
+    return len(docs), len(out.encode("utf-8"))
+
+
+def build_toc_page():
+    TL = {"must": "必須", "core": "差がつく", "skip": "不要"}
+    sec = []
+    for fname, label in item_pages():
+        html = (ROOT / fname).read_text(encoding="utf-8")
+        summ = ""
+        for m in PATTERN_PAGES:
+            if m.PAGE["file"] == fname:
+                summ = m.PAGE["summary"]
+        parts, n, ol_open = [], 0, False
+        for m in re.finditer(r'<h2[^>]*>(.*?)</h2>|<article class="item" data-tier="(must|core|skip)" id="([^"]+)">\s*<header>.*?<h3>(.*?)</h3>', html, re.S):
+            if m.group(1) is not None:
+                h = _plain(m.group(1))
+                if h == "確認問題" or "図解の読み方" in h:
+                    continue
+                if ol_open:
+                    parts.append("      </ol>")
+                parts.append('      <p class="toc-h">%s</p>\n      <ol>' % h)
+                ol_open = True
+            else:
+                if not ol_open:
+                    parts.append("      <ol>")
+                    ol_open = True
+                n += 1
+                tier, _id, title = m.group(2), m.group(3), _plain(m.group(4))
+                parts.append('        <li data-id="%s" data-tier="%s"><a href="%s#%s"><span class="tier tier-%s">%s</span><span class="no">No.%02d</span> %s</a></li>' % (_id, tier, fname, _id, tier, TL[tier], n, title))
+        if ol_open:
+            parts.append("      </ol>")
+        head = '<a href="%s">%s</a>' % (fname, label)
+        sec.append('    <section class="tocp" data-page="%s">\n      <h2>%s<span class="count"></span></h2>%s\n%s\n    </section>' % (
+            fname, head, ('\n      <p class="note">%s</p>' % summ) if summ else "", "\n".join(parts)))
+    others = ('    <section class="tocp-other">\n      <h2>そのほか</h2>\n      <ul>\n'
+              '        <li><a href="patterns.html">構文ライブラリ（8分野の入口）</a></li>\n'
+              '        <li><a href="skip-list.html">ここまでは不要（一覧）</a></li>\n'
+              '        <li><a href="progress.html">記録（レベル・トロフィー）</a></li>\n'
+              '        <li><a href="privacy.html">プライバシーポリシー</a></li>\n      </ul>\n    </section>')
+    page = [HEAD.format(title="目次", desc="受験英語 完全攻略ノートの全項目の目次。ページごとの項目一覧から、読みたい項目にすぐ移動できる。"),
+            "  <h1>目次</h1>",
+            '  <p class="lead">全ページの項目の一覧。読みたい項目をクリックすると、その項目に移動する。<b>キーワードで探すときは、右上の「検索」</b>（または <kbd>/</kbd> キー）を使う。</p>',
+            "  <div class=\"tocs\">", "\n".join(sec), others, "  </div>",
+            "  <footer>\n    <p><a href=\"index.html\">← トップへ戻る</a></p>\n  </footer>", FOOT]
+    (ROOT / "toc.html").write_text("\n".join(page), encoding="utf-8")
+
+
 if __name__ == "__main__":
     counts = [build_category(i) for i in range(len(PATTERN_PAGES))]
     total, tiers = build_hub()
+    build_toc_page()
     sync_nav()
     skip_rows = build_skip_section()
     n, by, q = build_manifest()
+    sdocs, ssize = build_search()
     print("構文ページ:", counts, "合計", total, tiers)
     print("不要リストに集計した構文の不要項目:", skip_rows)
     print("全項目:", n, by, "確認問題:", q)
+    print("検索インデックス:", sdocs, "件", ssize // 1024, "KB")

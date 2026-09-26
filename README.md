@@ -12,8 +12,10 @@
 - `before-reading.html` 長文の前に（手書きHTML）
 - `score-tips.html` 得点のコツ（手書きHTML）
 - `skip-list.html` ここまでは不要（手書き＋構文の不要項目を自動集計）
+- `toc.html` 全体の目次（**自動生成**。全項目へのリンクと、ページ別の完了数）
 - `progress.html` 記録（レベル・経験値・トロフィー・連続日数）
-- `assets/style.css` `assets/app.js` 共通、`assets/manifest.js` 項目一覧（自動生成）
+- `privacy.html` プライバシーポリシー
+- `assets/style.css` `assets/app.js` 共通、`assets/manifest.js` 項目一覧（自動生成）、`assets/search-index.js` 検索インデックス（自動生成。初めて検索を開いたときに読み込む）
 
 ## ビルド（項目を追加・変更したら必ず実行）
 ```
@@ -22,6 +24,10 @@ python3 tools/build_all.py
 構文ページの生成、ナビの統一、不要リストの構文分の集計、`manifest.js`（レベル・トロフィー用の全項目一覧）の生成を行う。
 構文の項目を足すときは `tools/content/<分野>.py` に `i(...)` を1つ足す（`id` はサイト全体で重複させない）。
 手書きページ（symbols / grammar / before-reading / score-tips）に項目を足したときも、`build_all.py` を実行して `manifest.js` を更新する。
+
+## 検索・目次（app.js）
+- ヘッダーの「検索」ボタン（または `/` キー）で、全項目を横断検索。スペース区切りはAND検索。結果から、隠れている項目（完了済み・「不要」）にも移動できる（一時的に表示して強調する）
+- 各ページの先頭に、そのページの目次（完了した項目には取り消し線と ✓）。全体の目次は `toc.html`
 
 ## ゲーム要素（app.js）
 - 「理解した」でチェックした項目は自動で隠れる（ボタンで表示に戻せる。チェック直後は6秒間「元に戻す」が出る）

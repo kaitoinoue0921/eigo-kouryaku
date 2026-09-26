@@ -315,6 +315,8 @@
     paintBadge(s);
     paintCards(s);
     paintPage();
+    paintToc();
+    paintTocPage();
     checkLevel(s, announce);
     checkAwards(s, announce);
     if (progressRoot) renderProgress(s);
@@ -360,6 +362,231 @@
   });
 
   if (pageFile() === 'skip-list.html') store.set('eiko:visit:skip', '1');
+
+
+  /* ---------- 目次（ページ内）・全体目次ページ ---------- */
+  var TIER_SHORT = { must: '必須', core: '差がつく', skip: '不要' };
+  var tocEl = null;
+  function esc(t) { var d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+  function buildToc() {
+    var main = document.querySelector('main');
+    if (!main || !hasItems) return;
+    var anchorNode = main.querySelector('.toolbar') || main.querySelector('.lead');
+    if (!anchorNode) return;
+    var quiz = main.querySelector('.quiz');
+    if (quiz && !quiz.id) quiz.id = 'quiz';
+    var html = '', n = 0, open = false;
+    main.querySelectorAll('h2, .item').forEach(function (el) {
+      if (el.closest('.quiz')) return;
+      if (el.tagName === 'H2') {
+        if (open) html += '</ol>';
+        html += '<p class="toc-h">' + esc(el.textContent) + '</p><ol>';
+        open = true;
+      } else {
+        if (!open) { html += '<ol>'; open = true; }
+        var h3 = el.querySelector('h3'), t = el.getAttribute('data-tier');
+        html += '<li data-tier="' + t + '" data-id="' + el.id + '"><a href="#' + el.id + '"><span class="tier tier-' + t + '">' + TIER_SHORT[t] +
+          '</span><span class="no">No.' + (h3.getAttribute('data-no') || '') + '</span> ' + esc(h3.textContent) + '</a></li>';
+        n++;
+      }
+    });
+    if (open) html += '</ol>';
+    if (quiz) html += '<p class="toc-h"><a href="#quiz">確認問題（' + quiz.querySelectorAll('details.q').length + '問）</a></p>';
+    tocEl = document.createElement('details');
+    tocEl.className = 'toc';
+    tocEl.innerHTML = '<summary>目次（' + n + '項目）</summary><div class="toc-body">' + html + '</div>';
+    anchorNode.parentNode.insertBefore(tocEl, anchorNode);
+  }
+  function paintToc() {
+    if (!tocEl) return;
+    tocEl.querySelectorAll('li').forEach(function (li) {
+      var it = document.getElementById(li.getAttribute('data-id'));
+      li.classList.toggle('done', !!(it && it.classList.contains('is-done')));
+      li.hidden = !inMode(li.getAttribute('data-tier'));
+    });
+    tocEl.querySelectorAll('p.toc-h').forEach(function (h) {
+      var ol = h.nextElementSibling;
+      if (ol && ol.tagName === 'OL') h.hidden = !ol.querySelector('li:not([hidden])');
+    });
+  }
+  function paintTocPage() {
+    var secs = document.querySelectorAll('.tocp[data-page]');
+    if (!secs.length) return;
+    secs.forEach(function (sec) {
+      var total = 0, done = 0;
+      sec.querySelectorAll('li[data-id]').forEach(function (li) {
+        total++;
+        var d = isDone(li.getAttribute('data-id'));
+        li.classList.toggle('done', d);
+        if (d) done++;
+      });
+      var c = sec.querySelector('.count');
+      if (c) c.textContent = done + ' / ' + total;
+    });
+  }
+
+  /* ---------- 項目へ移動（隠れていても表示する） ---------- */
+  function revealHash() {
+    var id = '';
+    try { id = decodeURIComponent(location.hash.slice(1)); } catch (e) { return; }
+    if (!id) return;
+    var t = document.getElementById(id);
+    if (!t) return;
+    if (t.classList.contains('item') && t.offsetParent === null) t.classList.add('force-show');
+    t.classList.remove('flash');
+    void t.offsetWidth;
+    t.classList.add('flash');
+    setTimeout(function () { t.classList.remove('flash'); }, 2400);
+    t.scrollIntoView({ block: 'start' });
+  }
+
+  /* ---------- 検索 ---------- */
+  var searchDocs = null, searchLoading = false;
+  var modal = null, inputEl = null, listEl = null, searchBtn = null;
+  var results = [], activeIdx = -1;
+  function norm(t) { return String(t).normalize('NFKC').toLowerCase(); }
+  function loadIndex(cb) {
+    if (searchDocs) return cb();
+    var ready = function () {
+      searchDocs = window.EIKO_SEARCH || [];
+      searchDocs.forEach(function (d) { d._t = norm(d.ti); d._x = norm(d.x); });
+      cb();
+    };
+    if (window.EIKO_SEARCH) return ready();
+    if (searchLoading) return;
+    searchLoading = true;
+    var sc = document.createElement('script');
+    sc.src = 'assets/search-index.js';
+    sc.onload = ready;
+    sc.onerror = function () { searchLoading = false; listEl.innerHTML = '<p class="s-empty">検索データを読み込めませんでした。</p>'; };
+    document.head.appendChild(sc);
+  }
+  function mountSearch() {
+    var wrap = document.querySelector('.site-head .wrap');
+    if (!wrap) return;
+    searchBtn = document.createElement('button');
+    searchBtn.type = 'button';
+    searchBtn.className = 'search-btn';
+    searchBtn.setAttribute('aria-label', '検索を開く');
+    searchBtn.innerHTML = '<span aria-hidden="true">🔍</span> 検索';
+    searchBtn.addEventListener('click', openSearch);
+    var anchor = wrap.querySelector('.nav');
+    wrap.insertBefore(searchBtn, anchor);
+
+    modal = document.createElement('div');
+    modal.className = 'search-modal';
+    modal.hidden = true;
+    modal.innerHTML = '<div class="search-box" role="dialog" aria-modal="true" aria-label="サイト内検索">' +
+      '<div class="search-head"><input type="search" class="search-input" placeholder="キーワードで検索（例：倒置　whereas　no more than　セミコロン）" autocomplete="off" aria-label="検索キーワード">' +
+      '<button type="button" class="search-close" aria-label="閉じる">×</button></div>' +
+      '<div class="search-list" role="listbox"></div>' +
+      '<p class="search-foot">スペースで区切ると、すべての語を含む項目に絞り込みます。　<kbd>↑</kbd><kbd>↓</kbd>で選択、<kbd>Enter</kbd>で移動、<kbd>Esc</kbd>で閉じる</p></div>';
+    document.body.appendChild(modal);
+    inputEl = modal.querySelector('.search-input');
+    listEl = modal.querySelector('.search-list');
+    modal.addEventListener('click', function (e) { if (e.target === modal) closeSearch(); });
+    modal.querySelector('.search-close').addEventListener('click', closeSearch);
+    inputEl.addEventListener('input', function () { runSearch(inputEl.value); });
+    inputEl.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); moveActive(1); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); moveActive(-1); }
+      else if (e.key === 'Enter') {
+        var a = listEl.querySelectorAll('a')[Math.max(activeIdx, 0)];
+        if (a) { e.preventDefault(); a.click(); }
+      }
+    });
+    listEl.addEventListener('click', function (e) { if (e.target.closest('a')) closeSearch(); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !modal.hidden) { closeSearch(); return; }
+      var tag = (e.target && e.target.tagName) || '';
+      if (e.key === '/' && !e.ctrlKey && !e.metaKey && tag !== 'INPUT' && tag !== 'TEXTAREA' && modal.hidden) { e.preventDefault(); openSearch(); }
+    });
+  }
+  function openSearch() {
+    modal.hidden = false;
+    document.body.classList.add('search-open');
+    inputEl.focus();
+    inputEl.select();
+    listEl.innerHTML = '<p class="s-empty">読み込み中…</p>';
+    loadIndex(function () { runSearch(inputEl.value); });
+  }
+  function closeSearch() {
+    modal.hidden = true;
+    document.body.classList.remove('search-open');
+    if (searchBtn) searchBtn.focus();
+  }
+  function moveActive(dir) {
+    var links = listEl.querySelectorAll('a');
+    if (!links.length) return;
+    activeIdx = (activeIdx + dir + links.length) % links.length;
+    links.forEach(function (a, i) { a.parentNode.classList.toggle('active', i === activeIdx); });
+    links[activeIdx].scrollIntoView({ block: 'nearest' });
+  }
+  function runSearch(q) {
+    var terms = norm(q).split(/[\s　]+/).filter(Boolean);
+    activeIdx = -1;
+    if (!terms.length) {
+      listEl.innerHTML = '<p class="s-empty">キーワードを入力してください。<br><span>例：倒置、whereas、no more than、セミコロン、仮定法、要約</span></p>';
+      return;
+    }
+    var out = [];
+    searchDocs.forEach(function (d) {
+      var score = 0;
+      for (var i = 0; i < terms.length; i++) {
+        var inT = d._t.indexOf(terms[i]) >= 0, inX = d._x.indexOf(terms[i]) >= 0;
+        if (!inT && !inX) return;
+        score += (inT ? 10 : 0) + (inX ? 2 : 0);
+      }
+      if (d.t === 'must') score += 1;
+      out.push({ d: d, score: score });
+    });
+    out.sort(function (a, b) { return b.score - a.score; });
+    results = out.slice(0, 40);
+    renderResults(terms, out.length);
+  }
+  function renderResults(terms, total) {
+    listEl.innerHTML = '';
+    if (!results.length) {
+      listEl.innerHTML = '<p class="s-empty">見つかりませんでした。<br><span>別の言い方や、英語の表現そのもので試してください。</span></p>';
+      return;
+    }
+    var head = document.createElement('p');
+    head.className = 's-count';
+    head.textContent = total + '件' + (total > results.length ? '（上位' + results.length + '件を表示）' : '');
+    listEl.appendChild(head);
+    var ul = document.createElement('ul');
+    results.forEach(function (r, i) {
+      var d = r.d, li = document.createElement('li');
+      var a = document.createElement('a');
+      a.href = d.p + (d.id ? '#' + d.id : '');
+      var top = document.createElement('span');
+      top.className = 's-top';
+      if (d.t) { var chip = document.createElement('span'); chip.className = 'tier tier-' + d.t; chip.textContent = TIER_SHORT[d.t]; top.appendChild(chip); }
+      var ti = document.createElement('b'); ti.textContent = d.ti; top.appendChild(ti);
+      var pn = document.createElement('span'); pn.className = 's-page'; pn.textContent = d.pn; top.appendChild(pn);
+      if (d.id && isDone(d.id)) { var dn = document.createElement('span'); dn.className = 's-done'; dn.textContent = '完了'; top.appendChild(dn); }
+      a.appendChild(top);
+      var sn = snippet(d, terms);
+      if (sn) a.appendChild(sn);
+      li.appendChild(a);
+      ul.appendChild(li);
+    });
+    listEl.appendChild(ul);
+  }
+  function snippet(d, terms) {
+    var x = d.x, nx = d._x, pos = -1, len = 0;
+    for (var i = 0; i < terms.length; i++) { var k = nx.indexOf(terms[i]); if (k >= 0 && (pos < 0 || k < pos)) { pos = k; len = terms[i].length; } }
+    var span = document.createElement('span');
+    span.className = 's-snip';
+    if (pos < 0) { span.textContent = x.slice(0, 90); return span; }
+    var start = Math.max(0, pos - 30), end = Math.min(x.length, pos + len + 60);
+    if (start > 0) span.appendChild(document.createTextNode('…'));
+    span.appendChild(document.createTextNode(x.slice(start, pos)));
+    var m = document.createElement('mark'); m.textContent = x.slice(pos, pos + len); span.appendChild(m);
+    span.appendChild(document.createTextNode(x.slice(pos + len, end)));
+    if (end < x.length) span.appendChild(document.createTextNode('…'));
+    return span;
+  }
 
   /* ---------- 記録ページ ---------- */
   var progressRoot = document.getElementById('progress-root');
@@ -409,6 +636,19 @@
   }
 
   /* ---------- 起動 ---------- */
+  // ヘッダーが固定表示のときだけ、その高さぶん下に切替バーを置く
+  function setHeadH() {
+    var h = document.querySelector('.site-head');
+    var fixed = h && getComputedStyle(h).position === 'sticky';
+    document.documentElement.style.setProperty('--head-h', fixed ? h.offsetHeight + 'px' : '0px');
+  }
   mountBadge();
+  mountSearch();
+  buildToc();
+  setHeadH();
+  window.addEventListener('resize', setHeadH);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(setHeadH);
   refresh(true);
+  revealHash();
+  window.addEventListener('hashchange', revealHash);
 })();
