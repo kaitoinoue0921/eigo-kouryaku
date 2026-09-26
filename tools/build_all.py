@@ -22,6 +22,8 @@ NAV = [("index.html", "トップ"), ("toc.html", "目次"), ("symbols.html", "�
 HEAD = """<!doctype html>
 <html lang="ja">
 <head>
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1744436882685241"
+     crossorigin="anonymous"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title} | 受験英語 完全攻略ノート</title>
@@ -183,6 +185,21 @@ def sync_nav():
         if 'href="privacy.html"' not in t and "</footer>" in t:
             t = t.replace("</footer>", '  <p class="note"><a href="privacy.html">プライバシーポリシー</a></p>\n  </footer>', 1)
         p.write_text(t, encoding="utf-8")
+
+
+def inject_ads():
+    """全ページの <head> に AdSense スクリプトを入れる（既存サイトと同じ方式）。"""
+    snippet = ('<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1744436882685241"\n'
+               '     crossorigin="anonymous"></script>\n')
+    n = 0
+    for p in sorted(ROOT.glob("*.html")):
+        t = p.read_text(encoding="utf-8")
+        if "adsbygoogle" in t:
+            continue
+        t = t.replace("<head>\n", "<head>\n" + snippet, 1)
+        p.write_text(t, encoding="utf-8")
+        n += 1
+    return n
 
 
 def build_skip_section():
@@ -524,6 +541,7 @@ if __name__ == "__main__":
     total, tiers = build_hub()
     build_toc_page()
     sync_nav()
+    ads_added = inject_ads()
     skip_rows = build_skip_section()
     n, by, q = build_manifest()
     sdocs, ssize = build_search()
@@ -531,3 +549,4 @@ if __name__ == "__main__":
     print("不要リストに集計した構文の不要項目:", skip_rows)
     print("全項目:", n, by, "確認問題:", q)
     print("検索インデックス:", sdocs, "件", ssize // 1024, "KB")
+    print("広告スクリプトを追加したページ:", ads_added)
