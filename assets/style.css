@@ -269,3 +269,55 @@ body.search-open{overflow:hidden}
 .s-empty span{font-size:.82rem}
 .search-foot{margin:0;padding:8px 12px;border-top:1px solid var(--rule);font-size:.75rem;color:var(--ink-soft)}
 kbd{font-family:inherit;font-size:.75em;border:1px solid var(--rule-strong);border-bottom-width:2px;border-radius:4px;padding:0 5px;margin:0 2px;background:var(--surface-2)}
+
+/* 英語構文マップ */
+.map{margin-top:44px}
+.map-h{font-family:"Shippori Mincho",serif;font-size:1.05rem;margin:28px 0 8px;padding-left:10px;border-left:5px solid var(--ink)}
+.mlegend{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0 4px}
+.mchip{display:inline-block;padding:3px 10px;margin:3px 4px 3px 0;border-radius:999px;font-size:.8rem;line-height:1.5;text-decoration:none;color:var(--ink);border:1.5px solid var(--edge,var(--rule-strong));background:var(--surface)}
+.mchip.t-must{font-weight:700;border-color:var(--edge,var(--must))}
+.mchip.t-core{background:transparent}
+.mchip.t-skip{border-style:dashed;color:var(--ink-soft);background:transparent}
+a.mchip:hover{background:var(--edge,var(--ink));color:var(--surface);border-color:var(--edge,var(--ink))}
+.mchip.done{text-decoration:line-through;text-decoration-color:var(--ink-soft);opacity:.6}
+.mchip.done::after{content:" ✓";color:var(--ok);display:inline-block;text-decoration:none}
+.mlegend .mchip{--edge:var(--ink-soft)}
+.mlegend .mchip.t-must{--edge:var(--must)}
+.mlegend .mchip.t-core{--edge:var(--core)}
+
+.mblock{--tint:hsl(var(--h) 60% 95%);--edge:hsl(var(--h) 50% 40%);--line:hsl(var(--h) 35% 78%);background:var(--tint);border:1px solid var(--line);border-top:5px solid var(--edge);border-radius:10px;padding:10px 14px 12px}
+.mblock h4{margin:0 0 2px;font-family:"Shippori Mincho",serif;font-size:1.05rem;color:var(--edge)}
+.mblock h4 small{font-family:"Zen Kaku Gothic New",sans-serif;font-size:.74rem;font-weight:500;color:var(--ink-soft);margin-left:8px}
+.mblock h4 a{color:var(--edge);text-decoration:none}
+.mblock p{margin:2px 0 6px;font-size:.84rem;color:var(--ink-soft);line-height:1.6}
+.mblock .mchip{background:var(--surface)}
+.mblock .mchip.t-core{background:transparent}
+.mblock .mchip.t-skip{background:transparent}
+.mblocks{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.mblocks.bands{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.mcats{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.mprog{float:right;font-family:"Zen Kaku Gothic New",sans-serif;font-size:.72rem;font-weight:500;color:var(--ink-soft)}
+
+.msent{background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:14px 16px}
+.msent-en{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:flex-start;margin:0 0 8px;font-family:Georgia,"Times New Roman",serif;font-size:1.05rem}
+.w{display:flex;flex-direction:column;align-items:center}
+.w i{font-style:normal;padding:1px 6px;border-radius:4px;background:hsl(var(--h) 60% 93%);border-bottom:3px solid hsl(var(--h) 55% 42%)}
+.w em{font-style:normal;font-family:"Zen Kaku Gothic New",sans-serif;font-size:.68rem;line-height:1.3;margin-top:2px;color:hsl(var(--h) 50% 38%);text-align:center}
+.msent-ja{margin:0;font-size:.9rem;color:var(--ink-soft)}
+.mformula{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:10px 0}
+.mformula span{padding:3px 14px;border-radius:999px;background:hsl(var(--h) 52% 42%);color:#fff;font-weight:700}
+.mformula b{color:var(--ink-soft)}
+.msteps{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin:6px 0}
+.mstep{background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:8px 12px}
+.mstep b{display:block;margin-bottom:2px;font-size:.92rem}
+
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]) .mblock{--tint:hsl(var(--h) 22% 19%);--edge:hsl(var(--h) 55% 68%);--line:hsl(var(--h) 25% 32%)}
+  :root:not([data-theme="light"]) .w i{background:hsl(var(--h) 25% 22%);border-bottom-color:hsl(var(--h) 55% 62%)}
+  :root:not([data-theme="light"]) .w em{color:hsl(var(--h) 55% 72%)}
+  :root:not([data-theme="light"]) .mformula span{background:hsl(var(--h) 45% 38%)}
+}
+:root[data-theme="dark"] .mblock{--tint:hsl(var(--h) 22% 19%);--edge:hsl(var(--h) 55% 68%);--line:hsl(var(--h) 25% 32%)}
+:root[data-theme="dark"] .w i{background:hsl(var(--h) 25% 22%);border-bottom-color:hsl(var(--h) 55% 62%)}
+:root[data-theme="dark"] .w em{color:hsl(var(--h) 55% 72%)}
+:root[data-theme="dark"] .mformula span{background:hsl(var(--h) 45% 38%)}

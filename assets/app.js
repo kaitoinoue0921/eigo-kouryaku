@@ -299,6 +299,18 @@
     });
   });
 
+  function paintMap(s) {
+    document.querySelectorAll('.mchip[data-id]').forEach(function (c) {
+      c.classList.toggle('done', isDone(c.getAttribute('data-id')));
+    });
+    document.querySelectorAll('.mcat[data-page]').forEach(function (c) {
+      var b = s.byPage[c.getAttribute('data-page')], el = c.querySelector('.mprog');
+      if (!b || !el) return;
+      var d = b.must.d + b.core.d + b.skip.d, tt = b.must.t + b.core.t + b.skip.t;
+      el.textContent = '必須 ' + b.must.d + '/' + b.must.t + '　全体 ' + d + '/' + tt;
+    });
+  }
+
   function paintCards(s) {
     document.querySelectorAll('.pcard[data-page]').forEach(function (c) {
       var b = s.byPage[c.getAttribute('data-page')];
@@ -317,6 +329,7 @@
     paintPage();
     paintToc();
     paintTocPage();
+    paintMap(s);
     checkLevel(s, announce);
     checkAwards(s, announce);
     if (progressRoot) renderProgress(s);
